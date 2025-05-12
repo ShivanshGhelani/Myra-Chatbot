@@ -31,7 +31,7 @@ def create_app():
     # Try both absolute and relative paths for static directories
     static_paths = ["static", os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")]
     template_paths = ["templates", os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")]
-      for path in static_paths:
+    for path in static_paths:
         if os.path.isdir(path):
             logging.info(f"Mounting static directory at: {path}")
             app.mount("/static", StaticFiles(directory=path), name="static")
@@ -57,7 +57,7 @@ def create_app():
             if os.path.exists(path):
                 logging.info(f"Serving favicon from: {path}")
                 return FileResponse(path)
-          logging.warning("Favicon not found")
+            logging.warning("Favicon not found")
         return None
         
     @app.get("/", response_class=HTMLResponse)
