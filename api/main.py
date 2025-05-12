@@ -2,10 +2,18 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import router  # Use relative import
 import os
 import logging
+import sys
 from pathlib import Path
+
+# Handle imports correctly whether run as a module or directly
+try:
+    from .routes import router  # Try relative import (when imported as a module)
+except ImportError:
+    # If that fails, try to add parent directory to path for direct script execution
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from api.routes import router  # Absolute import (when run directly)
 
 # Configure logging
 logging.basicConfig(level=logging.WARNING)  # Set global logging level to WARNING

@@ -1,0 +1,230 @@
+import datetime
+import logging
+import os
+import traceback
+import json
+from json import load, dump
+from groq import Groq
+from fastapi import HTTPException
+from config.settings import settings
+
+# Check for Vercel environment
+VERCEL_ENV = os.environ.get("VERCEL") == "1" or "VERCEL" in os.environ
+
+# Ensure logs directory exists
+LOG_DIR = "logs"
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(LOG_DIR, 'app.log')),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+ALLOWED_MODELS = ["llama3-70b-8192", "mixtral-8x7b-32768"]
+DEFAULT_MODEL = "llama3-70b-8192"
+
+class ChatManager:
+    def __init__(self):
+        try:
+            # Get API key with fallback to environment variable
+            api_key = settings.GROQ_API_KEY
+            if api_key == "dummy_key_for_testing":
+                logger.warning("Using dummy API key - chat functionality will be limited to predefined responses")
+            
+            # Initialize Groq client (this doesn't make API calls yet)
+            self.client = Groq(api_key=api_key)
+            self.system_message = self._create_system_message()
+            self.model = DEFAULT_MODEL
+            self.is_dummy_mode = api_key == "dummy_key_for_testing"
+            
+            logger.info(f"Initialized ChatManager with model: {self.model}")
+            
+            # Only create directories/files in development, not in serverless
+            if not os.environ.get("VERCEL"):
+                # Ensure chat log directory exists
+                chat_log_dir = os.path.dirname(settings.CHAT_LOG_PATH)
+                if not os.path.exists(chat_log_dir):
+                    os.makedirs(chat_log_dir)
+                
+                # Create empty chat log if it doesn't exist
+                if not os.path.exists(settings.CHAT_LOG_PATH):
+                    with open(settings.CHAT_LOG_PATH, "w") as f:
+                        f.write("[]")
+                    logger.info(f"Created empty chat log at {settings.CHAT_LOG_PATH}")
+            else:
+                logger.info("Running in Vercel environment, skipping file operations")
+                
+        except Exception as e:
+            logger.error(f"Error initializing ChatManager: {str(e)}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to initialize chat service: {str(e)}"
+            )
+        
+    def _create_system_message(self, user_name=None):
+        # Use a universal friendly greeting that works for all users
+        greeting = "Hello, valued friend"
+        return f"""{greeting}, I am a helpful assistant. You are a very accurate and advanced AI chatbot named {settings.ASSISTANT_NAME} which also has real-time up-to-date information from the internet.
+*** Do not tell time until I ask, do not talk too much, just answer the question.***
+*** Reply in only English, even if the question is in Hindi, reply in English.***
+*** Do not provide notes in the output, just answer the question and never mention your training data. ***
+*** Always use respectful and professional language, addressing the user in a friendly manner. ***
+"""
+
+    def _get_realtime_info(self):
+        current_date_time = datetime.datetime.now()
+        return f"Day: {current_date_time.strftime('%A')}, Date: {current_date_time.strftime('%d %B %Y')}, Time: {current_date_time.strftime('%H:%M:%S')}"
+    
+    def _modify_answer(self, answer: str) -> str:
+        if not answer:
+            return ""
+        return '\n'.join([line for line in answer.split('\n') if line.strip()])
+
+    def _chunk_messages(self, messages, max_tokens=5000):
+        """Split messages into smaller chunks to avoid token limit."""
+        # Rough estimate: 4 chars ~= 1 token
+        total_length = sum(len(msg["content"]) for msg in messages)
+        if total_length / 4 <= max_tokens:
+            return messages
+
+        # Keep only the most recent messages that fit within the token limit
+        result = []
+        current_length = 0
+        for msg in reversed(messages):
+            msg_length = len(msg["content"]) / 4
+            if current_length + msg_length > max_tokens:
+                break
+            result.insert(0, msg)
+            current_length += msg_length
+        
+        return result    def chat(self, query: str, user_name=None) -> str:
+        if not query or not query.strip():
+            logger.error("Empty query provided")
+            raise ValueError("Empty query provided")
+
+        try:
+            # Check if we're in dummy mode (no API key)
+            if self.is_dummy_mode:
+                logger.warning("Using dummy chat response (no valid API key)")
+                return f"I'm unable to generate a full response because no valid API key was provided. Your query was: '{query}'. Please ensure a valid Groq API key is configured in the environment variables."
+            
+            # Only load chat history if not in serverless environment
+            if not os.environ.get("VERCEL"):
+                messages = self._load_chat_history()
+                messages.append({"role": "user", "content": query})
+                # Chunk messages to avoid token limit
+                chunked_messages = self._chunk_messages(messages)
+            else:
+                # In serverless, just use the current query
+                chunked_messages = [{"role": "user", "content": query}]
+            
+            # Update system message with user name if provided
+            system_message = self._create_system_message(user_name)
+            
+            logger.info(f"Sending request to Groq API with model: {self.model}")
+            
+            # Implement retry logic for API calls
+            max_retries = 3
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    completion = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": system_message},
+                            {"role": "system", "content": self._get_realtime_info()},
+                            *chunked_messages
+                        ],
+                        max_tokens=1024,
+                        temperature=0.7,
+                        top_p=1,
+                        stream=False,
+                        timeout=30
+                    )
+                    logger.info("Successfully received response from Groq API")
+                    break  # Break the retry loop if successful
+                except Exception as api_error:
+                    retry_count += 1
+                    logger.warning(f"API call attempt {retry_count} failed: {str(api_error)}")
+                    if retry_count >= max_retries:
+                        error_details = f"API error after {max_retries} attempts: {str(api_error)}"
+                        logger.error(error_details)
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"API error: {str(api_error)}"
+                        )
+            
+            if not completion or not hasattr(completion, 'choices') or not completion.choices:
+                error_msg = f"Invalid API response structure: {completion}"
+                logger.error(error_msg)
+                raise HTTPException(
+                    status_code=500,
+                    detail="Invalid response from the chat service"
+                )
+            
+            answer = completion.choices[0].message.content
+            if not answer or not answer.strip():
+                logger.error("Empty response received from API")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Empty response from the chat service"
+                )
+            
+            messages.append({"role": "assistant", "content": answer})
+            
+            try:
+                self._save_chat_history(messages)
+            except Exception as e:
+                logger.warning(f"Failed to save chat history: {str(e)}\n{traceback.format_exc()}")
+                
+            return self._modify_answer(answer)
+            
+        except HTTPException:
+            raise
+        except ValueError as ve:
+            logger.error(f"Validation error: {str(ve)}")
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception as e:
+            error_details = f"Unexpected error in chat: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_details)
+            raise HTTPException(
+                status_code=500,
+                detail="An unexpected error occurred while processing your request"
+            )
+
+    def _load_chat_history(self):
+        try:
+            # Make sure the file exists
+            if not os.path.exists(settings.CHAT_LOG_PATH):
+                return []
+                
+            with open(settings.CHAT_LOG_PATH, "r") as f:
+                content = f.read().strip()
+                if not content:
+                    return []
+                return json.loads(content)
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON in chat history file. Creating new history.")
+            return []
+        except Exception as e:
+            logger.error(f"Error loading chat history: {str(e)}")
+            return []
+
+    def _save_chat_history(self, messages):
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(settings.CHAT_LOG_PATH), exist_ok=True)
+            
+            with open(settings.CHAT_LOG_PATH, "w") as f:
+                json.dump(messages, f, indent=4)
+        except Exception as e:
+            logger.error(f"Error saving chat history: {str(e)}")
+            # Don't raise here, just log the error
