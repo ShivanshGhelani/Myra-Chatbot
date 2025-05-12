@@ -1,11 +1,15 @@
-from dotenv import dotenv_values
+from dotenv import load_dotenv
 import os
-from typing import Optional
+from typing import Optional, Dict
 from pathlib import Path
 
 class Settings:
     def __init__(self):
-        self.env_vars = dotenv_values(".env")
+        # Load environment variables from .env file if it exists
+        load_dotenv()
+        
+        # Get environment variables from both .env file and system environment
+        self.env_vars = self._get_env_vars()
         self._validate_required_env_vars()
         
         self.USERNAME = self.env_vars.get("Username", "Assistant")
@@ -15,19 +19,35 @@ class Settings:
         self.CHAT_LOG_PATH = "Data/ChatLog.json"
         self.SPEECH_FILE_PATH = "speech.mp3"
     
-    def _validate_required_env_vars(self) -> None:
+    def _get_env_vars(self) -> Dict[str, str]:
+        """Combine environment variables from both .env file and system environment."""
+        # Priority: system environment variables override .env file
+        env_vars = {}
+        
+        # Add all system environment variables
+        for key, value in os.environ.items():
+            env_vars[key] = value
+            
+        return env_vars
+      def _validate_required_env_vars(self) -> None:
         """Validate that all required environment variables are present."""
         required_vars = ["GroqAPIKey"]
-        missing_vars = [var for var in required_vars if not self.env_vars.get(var)]
+        missing_vars = []
+        
+        for var in required_vars:
+            # Check both system env vars and .env file
+            if not self.env_vars.get(var):
+                missing_vars.append(var)
         
         if missing_vars:
             raise EnvironmentError(
                 f"Missing required environment variables: {', '.join(missing_vars)}. "
-                "Please check your .env file."
+                "Please check your environment variables or .env file."
             )
     
     def get_required_env_var(self, key: str) -> str:
         """Get a required environment variable or raise an error if it's missing."""
+        # Check for environment variable in system environment or .env file
         value = self.env_vars.get(key)
         if not value:
             raise EnvironmentError(f"Missing required environment variable: {key}")

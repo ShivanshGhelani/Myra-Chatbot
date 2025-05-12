@@ -17,6 +17,14 @@ logger.info(f"Project root set to: {project_root}")
 logger.info(f"Current working directory: {os.getcwd()}")
 logger.info(f"Python path: {sys.path}")
 
+# Log environment variables (excluding sensitive ones)
+logger.info("Available environment variables (keys only):")
+for key in os.environ:
+    if not key.lower().endswith(('key', 'secret', 'password', 'token')):
+        logger.info(f"- {key}")
+    else:
+        logger.info(f"- {key}: [REDACTED]")
+
 # Create necessary directories
 for dir_path in ["logs", "Data", "audio", "templates", "static"]:
     try:
