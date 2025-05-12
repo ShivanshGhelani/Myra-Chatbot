@@ -256,12 +256,7 @@ A FastAPI-based chatbot powered by Groq AI, offering intelligent conversation, t
 The application features a clean, intuitive interface that works across devices:
 
 - **Desktop Interface**: Full-featured chat experience with ample space for conversations
-- **Mobile View**: Responsive design that adapts to smaller screens while maintaining all functionality
-
-  ![Mobile View of MyraChatBot](screenshots/mobile-view.png)
-  *The mobile interface provides a seamless chat experience on smaller screens*
-
-More screenshots can be found in the [screenshots directory](screenshots/).
+- **Mobile View**: Responsive design that adapts to smaller screens while maintaining all functionalit
 
 ## Setup
 
