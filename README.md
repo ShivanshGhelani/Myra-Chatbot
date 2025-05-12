@@ -22,7 +22,7 @@ MyraChatBot is a modern, responsive AI assistant web application built with Fast
 
 ### Mobile View
 
-![Mobile View of MyraChatBot](screenshots/mobile-view.png)
+![Mobile View of MyraChatBot](screenshots/mobile-view.jpg)
 *The mobile interface provides a seamless chat experience on smaller screens*
 
 ## Features
