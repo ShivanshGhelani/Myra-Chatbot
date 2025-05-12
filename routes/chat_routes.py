@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 import logging
+import os
+import sys
+# Ensure module imports work in Vercel environment
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.chat import ChatManager
 from typing import Dict, List
 

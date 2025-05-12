@@ -1,0 +1,22 @@
+# Python virtual environment
+myra-bot/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Log files
+logs/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Screenshots (not needed for production)
+screenshots/
+
+# Local environment
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
