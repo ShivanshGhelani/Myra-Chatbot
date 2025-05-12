@@ -8,20 +8,39 @@ from groq import Groq
 from fastapi import HTTPException
 from config.settings import settings
 
-# Ensure logs directory exists
-LOG_DIR = "logs"
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
+# Check if running on Vercel
+IS_VERCEL = os.environ.get('VERCEL') == '1'
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(os.path.join(LOG_DIR, 'app.log')),
-        logging.StreamHandler()
-    ]
-)
+# Set up logging based on environment
+if IS_VERCEL:
+    # In Vercel, use /tmp for writable files
+    LOG_DIR = "/tmp/logs"
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR, exist_ok=True)
+    
+    # Configure logging - in Vercel, we might need to rely more on console output
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler()  # Just use console logging on Vercel
+        ]
+    )
+else:
+    # Local development: use regular log directory
+    LOG_DIR = "logs"
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
+        
+    # Configure logging with file output
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(os.path.join(LOG_DIR, 'app.log')),
+            logging.StreamHandler()
+        ]
+    )
 logger = logging.getLogger(__name__)
 
 ALLOWED_MODELS = ["llama3-70b-8192", "mixtral-8x7b-32768"]

@@ -11,5 +11,8 @@
             "src": "/(.*)",
             "dest": "api/vercel_entry.py"
         }
-    ]
+    ],
+    "env": {
+        "GroqAPIKey": "@groqapikey"
+    }
 }

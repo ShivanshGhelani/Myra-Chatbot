@@ -11,13 +11,22 @@ class Settings:
         # Get environment variables from both .env file and system environment
         self.env_vars = self._get_env_vars()
         self._validate_required_env_vars()
-        
         self.USERNAME = self.env_vars.get("Username", "Assistant")
         self.ASSISTANT_NAME = self.env_vars.get("Assistantname", "AI Assistant")
         self.GROQ_API_KEY = self.get_required_env_var("GroqAPIKey")
         
-        self.CHAT_LOG_PATH = "Data/ChatLog.json"
-        self.SPEECH_FILE_PATH = "speech.mp3"
+        # Check if running on Vercel for path settings
+        self.IS_VERCEL = os.environ.get('VERCEL') == '1'
+        
+        # Set appropriate paths based on environment
+        if self.IS_VERCEL:
+            # Use /tmp directory for Vercel (serverless functions can write here)
+            self.CHAT_LOG_PATH = "/tmp/data/ChatLog.json"
+            self.SPEECH_FILE_PATH = "/tmp/speech.mp3"
+        else:
+            # Local paths
+            self.CHAT_LOG_PATH = "Data/ChatLog.json"
+            self.SPEECH_FILE_PATH = "speech.mp3"
     
     def _get_env_vars(self) -> Dict[str, str]:
         """Combine environment variables from both .env file and system environment."""
@@ -62,20 +71,32 @@ except Exception as e:
 
 # Base directory
 BASE_DIR = Path(__file__).parent.parent
+IS_VERCEL = os.environ.get('VERCEL') == '1'
 
-# Supported audio formats
-SUPPORTED_FORMATS = ('.wav', '.aiff', '.aif', '.flac', '.mp3', '.ogg', '.opus', '.m4a', '.aac')
+# Set up directories based on environment
+if IS_VERCEL:
+    import tempfile
+    # Use /tmp directory which is writable on Vercel
+    TMP_DIR = Path('/tmp')
 
-# Audio directory for saving uploaded files
-AUDIO_DIR = BASE_DIR / 'audio'
+    LOGS_DIR = TMP_DIR / 'logs'
+    DATA_DIR = TMP_DIR / 'data'
+    TEMPLATES_DIR = BASE_DIR / 'templates'  # Read-only is fine for templates
+else:
+
+    LOGS_DIR = BASE_DIR / 'logs'
+    DATA_DIR = BASE_DIR / 'Data'
+    TEMPLATES_DIR = BASE_DIR / 'templates'
 
 # Language settings
 DEFAULT_LANGUAGE = 'en-US'
 SUPPORTED_LANGUAGES = ['gu-IN', 'hi-IN', 'en-US', 'fr-FR', 'es-ES', 'de-DE', 'it-IT', 'ja-JP', 'ko-KR', 'zh-CN', 'ru-RU']
 
-# Directory settings
-AUDIO_DIR = BASE_DIR / 'audio'
-TEMPLATES_DIR = BASE_DIR / 'templates'
-
-# Ensure directories exist
-AUDIO_DIR.mkdir(exist_ok=True)
+# Ensure directories exist in writable locations
+try:
+    if not IS_VERCEL:
+        LOGS_DIR.mkdir(exist_ok=True)
+        DATA_DIR.mkdir(exist_ok=True)
+except Exception as e:
+    print(f"Warning: Could not create directories: {str(e)}")
+    # Fall back to memory-only operation if directories can't be created

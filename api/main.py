@@ -87,11 +87,26 @@ def create_app():
         
         # Fallback HTML content
         logging.warning("Template file not found, serving default HTML")
-        return HTMLResponse(content="<h1>Myra ChatBot API</h1><p>API is running. Use endpoints to interact with the chatbot.</p>")
-
-    @app.get("/health")
+        return HTMLResponse(content="<h1>Myra ChatBot API</h1><p>API is running. Use endpoints to interact with the chatbot.</p>")    @app.get("/health")
     async def health():
         return {"status": "healthy"}
+        
+    @app.get("/env-check")
+    async def env_check():
+        """Check environment variables (non-sensitive ones)"""
+        # Only show non-sensitive information
+        env_info = {
+            "VERCEL": os.environ.get("VERCEL"),
+            "is_vercel": os.environ.get("VERCEL") == "1",
+            "temp_writable": os.access("/tmp", os.W_OK),
+            "api_keys_available": bool(os.environ.get("GroqAPIKey")),
+            "writable_dirs": {
+                "/tmp": os.access("/tmp", os.W_OK),
+                "audio": os.access("/tmp/audio" if os.environ.get("VERCEL") == "1" else "audio", os.W_OK),
+                "data": os.access("/tmp/data" if os.environ.get("VERCEL") == "1" else "Data", os.W_OK) 
+            }
+        }
+        return env_info
 
     return app
 

@@ -25,13 +25,31 @@ for key in os.environ:
     else:
         logger.info(f"- {key}: [REDACTED]")
 
+# Check if running on Vercel
+IS_VERCEL = os.environ.get('VERCEL') == '1'
+
 # Create necessary directories
-for dir_path in ["logs", "Data", "audio", "templates", "static"]:
-    try:
-        Path(dir_path).mkdir(exist_ok=True)
-        logger.info(f"Directory exists or created: {dir_path}")
-    except Exception as e:
-        logger.warning(f"Failed to create directory {dir_path}: {str(e)}")
+if IS_VERCEL:
+    # On Vercel, use /tmp directory which is writable
+    logger.info("Running on Vercel, using /tmp for writable directories")
+    tmp_dir = Path("/tmp")
+    for dir_path in ["logs", "data", "audio"]:
+        try:
+            (tmp_dir / dir_path).mkdir(exist_ok=True, parents=True)
+            logger.info(f"Created temporary directory: /tmp/{dir_path}")
+        except Exception as e:
+            logger.warning(f"Failed to create temporary directory /tmp/{dir_path}: {str(e)}")
+    
+    # Static and templates are read-only on Vercel and are part of the deployment
+    logger.info("Static and template directories are read-only on Vercel")
+else:
+    # Local development, create directories as normal
+    for dir_path in ["logs", "Data", "audio", "templates", "static"]:
+        try:
+            Path(dir_path).mkdir(exist_ok=True)
+            logger.info(f"Directory exists or created: {dir_path}")
+        except Exception as e:
+            logger.warning(f"Failed to create directory {dir_path}: {str(e)}")
 
 try:
     # Import main app
