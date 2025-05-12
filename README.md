@@ -11,16 +11,19 @@ MyraChatBot is a modern, responsive AI assistant web application built with Fast
 ## Screenshots
 
 ### Chat Interface
+
 ![Chat Interface](screenshots/chat-interface.png)
 *The main chat interface where users can interact with the AI assistant*
 
 ### Text Summarization
+
 ![Text Summarization](screenshots/summarization.png)
 *Text summarization feature in action*
 
-### Visual Scene Description
-![Scene Description](screenshots/scene-description.png)
-*The AI generating descriptions from detected objects*
+### Mobile View
+
+![Mobile View of MyraChatBot](screenshots/mobile-view.png)
+*The mobile interface provides a seamless chat experience on smaller screens*
 
 ## Features
 
@@ -28,7 +31,6 @@ MyraChatBot is a modern, responsive AI assistant web application built with Fast
 - **Text Summarization**: Generate concise summaries of any text input
 - **Visual Scenario Description**: Generate natural language descriptions from object detection data
 - **User-Friendly Interface**: Modern, responsive UI with code highlighting and markdown support
-- **Chat History Persistence**: Save and load past conversations
 - **Configurable Settings**: Easily customizable through environment variables
 
 ## Tech Stack
@@ -80,12 +82,12 @@ MyraChatBot/
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Serves the main chat interface |
-| `/chat` | POST | Process chat requests |
-| `/summarize` | POST | Generate text summaries |
-| `/scenario` | POST | Generate descriptions from object detection data |
+| Endpoint       | Method | Description                                      |
+| -------------- | ------ | ------------------------------------------------ |
+| `/`          | GET    | Serves the main chat interface                   |
+| `/chat`      | POST   | Process chat requests                            |
+| `/summarize` | POST   | Generate text summaries                          |
+| `/scenario`  | POST   | Generate descriptions from object detection data |
 
 ## Setup and Installation
 
@@ -98,23 +100,24 @@ MyraChatBot/
 ### Environment Setup
 
 1. Clone the repository:
+
    ```
    git clone <repository-url>
    cd MyraChatBot
    ```
-
 2. Create and activate a virtual environment:
+
    ```
    python -m venv myra-bot
    myra-bot\Scripts\activate
    ```
-
 3. Install dependencies:
+
    ```
    pip install fastapi uvicorn groq python-dotenv
    ```
-
 4. Create a `.env` file in the root directory:
+
    ```
    Username=YourUsername
    Assistantname=Myra
@@ -124,11 +127,12 @@ MyraChatBot/
 ### Running the Application
 
 1. Start the server:
+
    ```
    uvicorn api.main:create_app --host 0.0.0.0 --port 8000 --reload
    ```
-
 2. Open your browser and navigate to:
+
    ```
    http://localhost:8000
    ```
@@ -138,6 +142,7 @@ MyraChatBot/
 ### Chat Interaction
 
 Send a POST request to `/chat` with:
+
 ```json
 {
   "query": "What is the capital of France?",
@@ -148,6 +153,7 @@ Send a POST request to `/chat` with:
 ### Text Summarization
 
 Send a POST request to `/summarize` with:
+
 ```json
 {
   "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
@@ -157,6 +163,7 @@ Send a POST request to `/summarize` with:
 ### Scenario Description
 
 Send a POST request to `/scenario` with:
+
 ```json
 {
   "status": "success",
@@ -191,6 +198,7 @@ The application can be configured through the `.env` file:
 ## Logging
 
 Logs are stored in `logs/app.log` and include:
+
 - API request/response details
 - Error information
 - System messages
@@ -198,6 +206,7 @@ Logs are stored in `logs/app.log` and include:
 ## Error Handling
 
 The application includes comprehensive error handling for:
+
 - API connection issues
 - Empty or invalid inputs
 - Model availability problems
@@ -232,30 +241,101 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 # Myra ChatBot
 
-A FastAPI-based chatbot application.
+A FastAPI-based chatbot powered by Groq AI, offering intelligent conversation, text summarization, and visual scene description capabilities.
 
 ## Features
 
-- AI-powered chatbot interface
-- FastAPI backend
-- Easy deployment to Vercel
+- 💬 AI-powered chat interface using Groq's advanced language models
+- 📝 Text summarization for condensing long content
+- 🖼️ Visual scene description for accessibility
+- ⚡ Fast, responsive API built with FastAPI
+- 📱 Mobile-friendly interface that adapts to all device sizes
 
-## Local Development
+## Screenshots
 
-1. Clone this repository
+The application features a clean, intuitive interface that works across devices:
+
+- **Desktop Interface**: Full-featured chat experience with ample space for conversations
+- **Mobile View**: Responsive design that adapts to smaller screens while maintaining all functionality
+
+  ![Mobile View of MyraChatBot](screenshots/mobile-view.png)
+  *The mobile interface provides a seamless chat experience on smaller screens*
+
+More screenshots can be found in the [screenshots directory](screenshots/).
+
+## Setup
+
+### Prerequisites
+
+- Python 3.9 or higher
+- Groq API key (get one at [https://console.groq.com](https://console.groq.com))
+
+### Environment Variables
+
+Create a `.env` file in the project root with:
+
+```
+GroqAPIKey=your_api_key_here
+Username=YourUsername
+Assistantname=Myra
+```
+
+### Installation
+
+1. Clone this repository:
+
+   ```
+   git clone https://github.com/yourusername/MyraChatBot.git
+   cd MyraChatBot
+   ```
 2. Install dependencies:
+
    ```
    pip install -r requirements.txt
    ```
-3. Run the development server:
+3. Run locally:
+
    ```
-   uvicorn app.main:app --reload
+   uvicorn api.main:app --reload
    ```
+4. Visit `http://localhost:8000` in your browser
+
+## API Endpoints
+
+- `POST /chat` - Send messages to the chatbot
+- `POST /summarize` - Generate concise summaries of text
+- `POST /scenario` - Create descriptions based on detected objects in images
 
 ## Deployment
 
-This project is configured for easy deployment to Vercel.
+### GitHub
 
-1. Push to GitHub
-2. Connect your GitHub repository to Vercel
-3. Deploy
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/yourusername/MyraChatBot.git
+git push -u origin main
+```
+
+### Vercel
+
+1. Import your GitHub repository in Vercel
+2. Add your environment variables in Vercel's project settings
+3. Deploy with default settings
+
+## Mobile Responsive Design
+
+MyraChatBot features a fully responsive design that works seamlessly across devices:
+
+- **Adaptive Layout**: Interface elements resize and reposition based on screen size
+- **Touch-Friendly Controls**: Larger hit areas on mobile for better usability
+- **Consistent Experience**: All features available regardless of device
+- **Performance Optimized**: Fast loading even on slower mobile connections
+
+The mobile interface maintains the same powerful functionality as the desktop version while adapting to the constraints of smaller screens. See the [mobile view screenshot](screenshots/mobile-view.png) for a preview.
+
+## License
+
+MIT
