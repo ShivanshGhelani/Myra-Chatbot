@@ -1,0 +1,2233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Myra - AI Chat Interface</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background-color: #1a1625;
+            color: #e9e9ff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(-45deg, #251d35, #2d2440, #1a1625, #2d2440);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            padding: 1.5rem;
+            border-bottom: 1px solid #463a66;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            height: auto;
+        }
+
+        .header-content {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .chatbot-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .profile-photo {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #ffffff;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #a277ff;
+            box-shadow: 0 0 20px #7b4fff40;
+            overflow: hidden;
+        }
+
+        .profile-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            padding: 4px;
+            background: #ffffff;
+        }
+
+        .profile-photo::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shine 3s infinite;
+        }
+
+        .chatbot-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .chatbot-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .status-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: #c4b7ff;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: #ffffff10;
+            backdrop-filter: blur(5px);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.online {
+            background-color: #4CAF50;
+            box-shadow: 0 0 8px #4CAF5080;
+        }
+
+        .status-dot.processing {
+            background-color: #a277ff;
+            box-shadow: 0 0 8px #a277ff80;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.learning {
+            background-color: #2196F3;
+            box-shadow: 0 0 8px #2196F380;
+        }
+
+        .pet-container {
+            margin-left: auto;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #a277ff;
+            box-shadow: 0 0 12px #a277ff80;
+            animation: pulse 2s infinite;
+            position: relative;
+        }
+
+        .status-indicator::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            border-radius: 50%;
+            border: 2px solid #a277ff;
+            animation: ripple 2s infinite;
+        }
+
+        .status-text {
+            font-size: 0.9rem;
+            color: #c4b7ff;
+            font-weight: 500;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .chat-container {
+            flex: 1;
+            max-width: 800px;
+            margin: 100px auto 0;
+            width: 100%;
+            padding: 20px 10px 240px 10px; /* Increased bottom padding for empty space */
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .message {
+            display: flex;
+            padding: 12px 16px;
+            gap: 12px;
+            width: fit-content; /* Changed to fit-content for bubble effect */
+            max-width: 80%; /* Maximum width of messages */
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: messageAppear 0.5s ease forwards;
+            margin-bottom: 16px; /* Space between messages */
+            position: relative; /* For the tail/arrow */
+            animation: messageEntrance 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes messageAppear {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .user-message {
+            background-color: #251d35;
+            border: 1px solid #463a6630;
+            margin-left: auto; /* Push user messages to right */
+            flex-direction: row-reverse; /* Avatar on right side */
+            border-top-right-radius: 4px; /* Adjust for tail */
+            padding-left: 40px;  /* Add space for buttons on left */
+            padding-right: 16px;
+        }
+
+        .ai-message {
+            background-color: #2d2440;
+            border: 1px solid #463a6630;
+            margin-right: auto; /* Push AI messages to left */
+            border-top-left-radius: 4px; /* Adjust for tail */
+        }
+
+        /* Message tail/arrow styles */
+        .user-message::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: -8px;
+            width: 0;
+            height: 0;
+            border: 8px solid transparent;
+            border-left-color: #251d35;
+            border-right: 0;
+            border-top: 0;
+            margin-top: 0;
+        }
+
+        .ai-message::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -8px;
+            width: 0;
+            height: 0;
+            border: 8px solid transparent;
+            border-right-color: #2d2440;
+            border-left: 0;
+            border-top: 0;
+            margin-top: 0;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            transform: scale(0.9);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: #ffffff;  /* Adding white background */
+        }
+
+        .avatar:hover {
+            transform: scale(1.1);
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            padding: 2px;  /* Adding padding to create space between SVG and border */
+            background: #ffffff;
+        }
+
+        .user-avatar {
+            background: linear-gradient(135deg, #a277ff, #8351e5);
+            box-shadow: 0 4px 12px #a277ff30;
+        }
+
+        .ai-avatar {
+            background: linear-gradient(135deg, #7b4fff, #5f2ee5);
+            box-shadow: 0 4px 12px #7b4fff30;
+        }
+
+        .user-avatar::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #ffffff30;
+            border-radius: 50%;
+            top: 6px;
+            right: 6px;
+            animation: pulse 2s infinite;
+        }
+
+        .ai-avatar::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 2px;
+            background: #ffffff30;
+            border-radius: 4px;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: all 0.3s ease;
+        }
+
+        .ai-avatar::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 12px;
+            background: #ffffff30;
+            border-radius: 4px;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: all 0.3s ease;
+        }
+
+        .ai-avatar:hover::before {
+            transform: translateX(-50%) rotate(180deg);
+        }
+
+        .ai-avatar:hover::after {
+            transform: translateX(-50%) rotate(90deg);
+        }
+
+        .message-content {
+            flex: 1;
+            line-height: 1.6;
+            color: #e9e9ff;
+            padding: 4px 0;
+            font-size: 0.95rem;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .input-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background-color: #1a1625;
+            border-top: 1px solid #463a66;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100; /* Ensure it stays above messages */
+        }
+
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .message-input {
+            width: 100%;
+            padding: 16px 20px;  /* Removed extra padding for character counter */
+            border-radius: 12px;
+            border: 1px solid #463a66;
+            background-color: #251d35;
+            color: #e9e9ff;
+            font-size: 16px;
+            resize: none;
+            min-height: 58px;
+            max-height: 200px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .message-input:focus {
+            border-color: #a277ff;
+            box-shadow: 0 0 0 2px #a277ff30;
+            transform: translateY(-2px);
+        }
+
+        .message-input::placeholder {
+            color: #8b85a1;
+        }
+
+        .send-button {
+            position: absolute;
+            right: 12px;
+            bottom: 12px;
+            background: none;
+            border: none;
+            color: #a277ff;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .send-button:hover {
+            background-color: #a277ff20;
+            transform: translateY(-1px);
+        }
+
+        .send-button:active {
+            transform: translateY(1px);
+        }
+
+        .send-button:disabled {
+            color: #463a66;
+            cursor: not-allowed;
+        }
+
+        .send-button:hover svg {
+            animation: sendPulse 1s infinite;
+        }
+
+        @keyframes sendPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #251d35;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #463a66;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a277ff;
+        }
+
+        /* Pet Animation Styles */
+        .pet-container {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 120px;
+            height: 40px;
+        }
+
+        .pet {
+            position: relative;
+            overflow: hidden;
+            width: 30px;
+            height: 20px;
+            border-radius: 4px;
+            animation: float 3s infinite ease-in-out;
+        }
+
+        .pet::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { left: -100%; }
+            20% { left: 100%; }
+            100% { left: 100%; }
+        }
+
+        .pet-1 {
+            background: linear-gradient(135deg, #a277ff, #8351e5);
+            left: 0;
+            animation-delay: 0s;
+        }
+
+        .pet-2 {
+            background: linear-gradient(135deg, #7b4fff, #5f2ee5);
+            right: 0;
+            animation-delay: 1.5s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) rotate(0deg);
+            }
+            25% {
+                transform: translateY(-10px) rotate(5deg);
+            }
+            50% {
+                transform: translateY(0) rotate(0deg);
+            }
+            75% {
+                transform: translateY(10px) rotate(-5deg);
+            }
+            100% {
+                transform: translateY(0) rotate(0deg);
+            }
+        }
+
+        .pet-interaction {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #a277ff;
+            border-radius: 50%;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            animation: interact 3s infinite;
+        }
+
+        @keyframes interact {
+            0%, 100% { 
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0);
+            }
+            50% { 
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.5);
+            }
+        }        /* Message typing animation */
+        .typing-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            max-width: max-content;
+            background: rgba(162, 119, 255, 0.1);
+        }
+
+        .ai-typing, .user-typing {
+            background: rgba(162, 119, 255, 0.1);
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #a277ff;
+            border-radius: 50%;
+            opacity: 0.4;
+            transform: scale(0.8);
+            animation: typingDot 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingDot {
+            0%, 100% { 
+                opacity: 0.4;
+                transform: scale(0.8);
+            }
+            50% { 
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        /* Robot Animation Styles */
+        .robot-animation {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 90px;
+            height: 45px;
+            perspective: 1000px;
+        }
+
+        .robot-computer {
+            margin-top: 5px;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+        }
+
+        .robot-head {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            top: -8px;
+            left: 20px;
+            animation: robotTalk 3s infinite ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            transform-origin: bottom center;
+        }
+
+        .robot-eyes {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            transform-style: preserve-3d;
+        }
+
+        .robot-eye {
+            width: 6px;
+            height: 6px;
+            background: #a277ff;
+            border-radius: 50%;
+            position: relative;
+            animation: eyeMove 4s infinite ease-in-out;
+            box-shadow: 0 0 8px rgba(162, 119, 255, 0.6);
+        }
+
+        .robot-eye::after {
+            content: '';
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.8;
+        }
+
+        .robot-screen {
+            position: absolute;
+            width: 44px;
+            height: 28px;
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 6px;
+            bottom: 0;
+            right: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            animation: screenFloat 4s infinite ease-in-out;
+            backdrop-filter: blur(4px);
+        }
+
+        .screen-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 4px;
+        }
+
+        .screen-dots {
+            display: flex;
+            gap: 3px;
+        }
+
+        .screen-dot {
+            width: 3px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            animation: dotPulse 2s infinite;
+        }
+
+        .screen-dot:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+
+        .screen-dot:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        .screen-line {
+            width: 70%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 1px;
+            animation: linePulse 2s infinite;
+        }
+
+        @keyframes robotTalk {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-5deg); }
+            75% { transform: rotate(5deg); }
+        }
+
+        @keyframes eyeMove {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(2px); }
+            75% { transform: translateX(-2px); }
+        }
+
+        @keyframes screenFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+
+        @keyframes dotPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes linePulse {
+            0%, 100% { opacity: 0.3; width: 70%; }
+            50% { opacity: 0.8; width: 50%; }
+        }
+
+        .user-typing {
+            font-size: 12px;
+            color: #a277ff;
+            margin-left: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .user-typing.visible {
+            opacity: 1;
+        }
+
+        /* Emoji reaction styles */
+        .reaction-button {
+            position: absolute;
+            bottom: 8px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            padding: 4px;
+            border-radius: 50%;
+            border: none;
+            background: none;
+            color: #8b85a1;
+            cursor: pointer;
+        }
+
+        .message:hover .reaction-button {
+            opacity: 1;
+        }
+
+        .reaction-button:hover {
+            background: #463a6630;
+            color: #a277ff;
+        }
+
+        .emoji-picker {
+            position: fixed;
+            background: #251d35;
+            border: 1px solid #463a66;
+            border-radius: 8px;
+            padding: 8px;
+            display: none;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            z-index: 1002; /* Ensure emoji picker appears above other elements */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .emoji-picker.show {
+            display: grid;
+        }
+
+        .emoji-option {
+            padding: 4px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .emoji-option:hover {
+            background: #463a6630;
+        }
+
+        .reaction-container {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .reaction {
+            background: #463a6630;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .reaction:hover {
+            background: #a277ff30;
+        }
+
+        .reaction-count {
+            font-size: 0.8em;
+            color: #8b85a1;
+        }        /* Enhanced typing indicator styles */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 16px;
+            background: rgba(45, 36, 64, 0.5);
+            border-radius: 12px;
+            width: fit-content;
+            margin: 8px 0;
+        }
+
+        /* Position user typing indicator on right side */
+        .message.user-message .typing-indicator {
+            margin-left: auto; /* Push to right side for user typing */
+        }
+
+        /* Position AI typing indicator on left side */
+        .message.ai-message .typing-indicator {
+            margin-right: auto; /* Push to left side for AI typing */
+        }
+
+        /* Enhanced Message Animations */
+        @keyframes messageEntrance {
+            0% { 
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            100% { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .message {
+            animation: messageEntrance 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Copy Button Styles */
+        .copy-button {
+            position: absolute;
+            top: 8px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            padding: 4px;
+            border-radius: 50%;
+            border: none;
+            background: none;
+            color: #8b85a1;
+            cursor: pointer;
+        }
+
+        .message:hover .copy-button {
+            opacity: 1;
+        }
+
+        .copy-button:hover {
+            background: #463a6630;
+            color: #a277ff;
+        }
+
+        .copy-tooltip {
+            position: absolute;
+            background: #251d35;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #e9e9ff;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1001; /* Ensure tooltip appears above other elements */
+        }
+
+        /* Search Feature Styles */
+        .search-container {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 300px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-container.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #463a66;
+            background: #251d35;
+            color: #e9e9ff;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #a277ff;
+            box-shadow: 0 0 0 2px #a277ff30;
+        }
+
+        .message.highlighted {
+            background: #a277ff20;
+            border-color: #a277ff;
+        }
+
+        /* Reaction Tooltip */
+        .reaction-tooltip {
+            position: absolute;
+            background: #251d35;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #e9e9ff;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+            border: 1px solid #463a66;
+        }
+
+        /* Code block styling */
+        pre {
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 8px;
+            background: #1a1625 !important;
+            border: 1px solid #463a66;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .message-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Markdown-like styling */
+        .message-text h1, 
+        .message-text h2, 
+        .message-text h3 {
+            margin-top: 16px;
+            margin-bottom: 8px;
+            color: #e9e9ff;
+        }
+
+        .message-text strong {
+            color: #a277ff;
+            font-weight: 600;
+        }
+
+        .message-text ul, 
+        .message-text ol {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        .message-text li {
+            margin-bottom: 4px;
+        }
+
+        .message-text p {
+            margin-bottom: 10px;
+        }
+
+        /* Language indicator for code blocks */
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            background: #251d35;
+            border: 1px solid #463a66;
+            border-bottom: none;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            font-size: 12px;
+            color: #8b85a1;
+        }
+
+        .code-header + pre {
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            margin-top: 0;
+        }
+
+        /* Copy code button */
+        .copy-code-button {
+            background: none;
+            border: none;
+            color: #8b85a1;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .copy-code-button:hover {
+            background: #463a6630;
+            color: #a277ff;
+        }
+
+        /* Button positioning styles */
+        .copy-button {
+            position: absolute;
+            top: 8px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            padding: 4px;
+            border-radius: 50%;
+            border: none;
+            background: none;
+            color: #8b85a1;
+            cursor: pointer;
+        }
+
+        .reaction-button {
+            position: absolute;
+            bottom: 8px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            padding: 4px;
+            border-radius: 50%;
+            border: none;
+            background: none;
+            color: #8b85a1;
+            cursor: pointer;
+        }
+
+        /* Position buttons for AI messages (left side) */
+        .ai-message .copy-button,
+        .ai-message .reaction-button {
+            right: -30px;
+        }
+
+        /* Position buttons for user messages (left side of the message) */
+        .user-message .copy-button,
+        .user-message .reaction-button {
+            left: -30px;
+        }
+
+        .message:hover .copy-button,
+        .message:hover .reaction-button {
+            opacity: 1;
+        }
+
+        /* Adjust tooltips positioning */
+        .user-message .copy-tooltip {
+            right: auto;
+            left: -70px;
+        }
+
+        /* Ensure emoji picker appears in correct position */
+        .emoji-picker {
+            position: fixed;
+            background: #251d35;
+            border: 1px solid #463a66;
+            border-radius: 8px;
+            padding: 8px;
+            display: none;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            z-index: 1002;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Adjust user message container for better spacing */
+        .user-message {
+            padding-left: 40px;  /* Add space for buttons on left */
+            padding-right: 16px;
+        }
+
+        /* Add a gradient fade effect at the bottom */
+        .chat-container::after {
+            content: '';
+            position: fixed;
+            bottom: 90px; /* Position above input container */
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(to bottom, transparent, #1a1625);
+            pointer-events: none;
+            z-index: 99;
+        }
+
+        /* Toast notification styles */
+        .toast-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 400px;
+            width: 90%;
+            background: #251d35;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            z-index: 1010;
+            padding: 20px;
+            border: 1px solid #463a66;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .toast-container.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .toast-header {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toast-header img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+
+        .toast-body {
+            margin-bottom: 16px;
+        }
+
+        .toast-input {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #463a66;
+            background-color: #1a1625;
+            color: #e9e9ff;
+            font-size: 16px;
+            outline: none;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .toast-input:focus {
+            border-color: #a277ff;
+            box-shadow: 0 0 0 2px #a277ff30;
+        }
+
+        .toast-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .toast-button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toast-button-primary {
+            background: #a277ff;
+            color: white;
+            border: none;
+        }
+
+        .toast-button-primary:hover {
+            background: #8351e5;
+            transform: translateY(-2px);
+        }
+
+        .toast-button-primary:active {
+            transform: translateY(0);
+        }
+
+        .toast-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(3px);
+            z-index: 1005;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .toast-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Responsive design adjustments */
+        @media (max-width: 768px) {
+            /* Header adjustments */
+            .header-content {
+                max-width: 100%;
+                padding: 0 5px;
+            }
+            
+            .chatbot-profile {
+                gap: 10px;
+            }
+            
+            .profile-photo {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .chatbot-name {
+                font-size: 1rem;
+            }
+            
+            .status-container {
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            
+            .status-item {
+                padding: 2px 6px;
+                font-size: 0.7rem;
+            }
+            
+            /* Robot animation adjustments */
+            .robot-animation {
+                width: 70px;
+                height: 35px;
+                right: 5px;
+            }
+            
+            .robot-head {
+                width: 22px;
+                height: 22px;
+            }
+            
+            .robot-eye {
+                width: 4px;
+                height: 4px;
+            }
+            
+            .robot-screen {
+                width: 36px;
+                height: 22px;
+            }
+            
+            /* Chat container adjustments */
+            .chat-container {
+                max-width: 100%;
+                padding: 90px 5px 210px 5px;
+                margin-top: 0;
+            }
+            
+            .message {
+                max-width: 90%;
+                padding: 10px 12px;
+            }
+            
+            .avatar {
+                width: 32px;
+                height: 32px;
+            }
+            
+            /* Input container adjustments */
+            .input-container {
+                padding: 15px 10px;
+            }
+            
+            .input-wrapper {
+                max-width: 100%;
+            }
+            
+            .message-input {
+                padding: 12px 16px;
+                min-height: 48px;
+                font-size: 14px;
+            }
+            
+            /* Toast adjustments */
+            .toast-container {
+                width: 85%;
+                padding: 15px;
+            }
+            
+            /* Button positioning for smaller screens */
+            .ai-message .copy-button,
+            .ai-message .reaction-button {
+                right: -25px;
+            }
+            
+            .user-message .copy-button,
+            .user-message .reaction-button {
+                left: -25px;
+            }
+            
+            /* Code block adjustments */
+            pre {
+                padding: 8px;
+                font-size: 12px;
+                overflow-x: auto;
+            }
+            
+            .code-header {
+                padding: 4px 8px;
+                font-size: 10px;
+            }
+        }
+        
+        /* Even smaller screens (phones) */
+        @media (max-width: 480px) {
+            .header {
+                padding: 1rem;
+            }
+            
+            .profile-photo {
+                width: 32px;
+                height: 32px;
+            }
+            
+            .chatbot-name {
+                font-size: 0.9rem;
+            }
+            
+            .status-container {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            
+            .status-item {
+                font-size: 0.7rem;
+                padding: 2px 4px;
+            }
+            
+            /* Hide or simplify robot animation on very small screens */
+            .robot-animation {
+                width: 60px;
+                right: 2px;
+            }
+            
+            .robot-screen {
+                width: 30px;
+                right: 5px;
+            }
+            
+            /* Message adjustments for very small screens */
+            .message {
+                max-width: 75%; /* Reduce from 85% to 75% for smaller container width */
+                gap: 6px;
+                padding: 6px 8px; /* Reduce padding to make containers smaller */
+                font-size: 0.85rem;
+                margin-bottom: 12px; /* Reduce bottom margin */
+            }
+            
+            .message-content {
+                font-size: 0.82rem; /* Make text slightly smaller */
+                padding: 1px 0; /* Further reduce padding */
+            }
+            
+            .avatar {
+                width: 22px; /* Make avatar smaller */
+                height: 22px;
+                min-width: 22px;
+            }
+            
+            /* Adjust buttons for smaller containers */
+            .ai-message .copy-button,
+            .ai-message .reaction-button {
+                right: -20px;
+            }
+            
+            .user-message .copy-button,
+            .user-message .reaction-button {
+                left: -20px;
+            }
+            
+            /* Smaller chat container padding */
+            .chat-container {
+                padding: 80px 5px 190px 5px;
+                gap: 15px;
+            }
+            
+            /* Adjust code blocks and pre elements to be smaller */
+            pre {
+                padding: 6px;
+                font-size: 11px;
+                margin: 6px 0;
+            }
+            
+            code {
+                font-size: 11px;
+            }
+            
+            /* Make reaction buttons smaller */
+            .reaction {
+                padding: 1px 4px;
+                font-size: 0.8em;
+            }
+            
+            /* Button adjustments for very small screens */
+            .ai-message .copy-button,
+            .ai-message .reaction-button {
+                right: -22px;
+                padding: 3px;
+            }
+            
+            .user-message .copy-button,
+            .user-message .reaction-button {
+                left: -22px;
+                padding: 3px;
+            }
+            
+            /* Toast adjustments for very small screens */
+            .toast-container {
+                width: 90%;
+                padding: 12px;
+            }
+            
+            .toast-header {
+                font-size: 1rem;
+                margin-bottom: 8px;
+            }
+            
+            .toast-input {
+                padding: 10px;
+                font-size: 14px;
+            }
+            
+            .toast-button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            
+            /* Add bottom fade to improve visibility of new messages */
+            .chat-container::after {
+                bottom: 80px;
+                height: 80px;
+            }
+            
+            /* Fix for virtual keyboard pushing content */
+            .input-container {
+                position: fixed;
+                bottom: 0;
+                height: auto;
+                max-height: 40vh; /* Limit height to prevent excessive space usage */
+                transition: none; /* Remove transitions that might interfere with keyboard */
+            }
+            
+            /* Ensure chat container doesn't scroll unnecessarily when keyboard appears */
+            .chat-container {
+                padding-bottom: 120px; /* Reduced padding to avoid unnecessary scroll space */
+                height: auto;
+                position: relative;
+            }
+            
+            /* Prevent iOS Safari from auto-scrolling on focus */
+            html, body {
+                height: 100%;
+                position: fixed;
+                width: 100%;
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+        
+        /* Additional keyboard handling for mobile devices */
+        @media screen and (max-width: 480px) and (max-height: 450px) {
+            /* When keyboard is likely visible (height reduced) */
+            .header {
+                opacity: 0.4; /* Make header less prominent when typing */
+                transform: translateY(-10px); /* Move header slightly up */
+                transition: all 0.3s ease;
+            }
+            
+            .input-container {
+                padding: 10px 8px; /* Reduce padding when keyboard is open */
+            }
+            
+            .message-input {
+                max-height: 80px; /* Limit textarea height when keyboard is open */
+            }
+            
+            /* Hide the gradient fade when keyboard is visible */
+            .chat-container::after {
+                opacity: 0.3;
+            }
+        }
+        
+        /* Ensure proper focusing without visual disruption */
+        @media (max-width: 480px) {
+            /* Prevent visual shifts when input is focused */
+            .input-container:focus-within {
+                transform: none !important; /* Override the focus animation on mobile */
+            }
+            
+            input, textarea, select, button {
+                font-size: 16px !important; /* Prevent iOS from zooming on input focus */
+            }
+        }
+        
+        /* Improve handling of horizontal space on small screens */
+        @media (max-width: 400px) {
+            .user-message, .ai-message {
+                padding-left: 6px;
+                padding-right: 6px;
+                max-width: 70%; /* Even smaller on very small screens */
+            }
+            
+            /* Move buttons even closer to messages */
+            .ai-message .copy-button,
+            .ai-message .reaction-button {
+                right: -18px;
+            }
+            
+            .user-message .copy-button,
+            .user-message .reaction-button {
+                left: -18px;
+            }
+            
+            /* Smaller buttons */
+            .copy-button, .reaction-button {
+                width: 18px;
+                height: 18px;
+            }
+            
+            .copy-button svg, .reaction-button svg {
+                width: 12px;
+                height: 12px;
+            }
+            
+            /* Adjust message tails */
+            .user-message::after, .ai-message::after {
+                border-width: 5px;
+            }
+            
+            /* Further reduce reaction size */
+            .reaction {
+                padding: 1px 3px;
+                font-size: 0.75em;
+            }
+            
+            .reaction-count {
+                font-size: 0.75em;
+            }
+            
+            /* Make the message input area even more compact */
+            .message-input {
+                padding: 8px 28px 8px 10px;
+                min-height: 42px;
+                font-size: 13px;
+            }
+            
+            .send-button {
+                padding: 6px;
+                right: 6px;
+                bottom: 8px;
+            }
+            
+            .send-button svg {
+                width: 20px;
+                height: 20px;
+            }
+        }
+        
+        /* Landscape orientation on mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .header {
+                padding: 0.7rem;
+            }
+            
+            .profile-photo {
+                width: 30px;
+                height: 30px;
+            }
+            
+            .chat-container {
+                padding-top: 70px;
+                padding-bottom: 160px;
+            }
+            
+            .input-container {
+                padding: 10px;
+            }
+            
+            .chat-container::after {
+                bottom: 70px;
+            }
+        }
+        
+        /* Ensure minimum tappable area for touch devices */
+        @media (hover: none) and (pointer: coarse) {
+            .send-button, .copy-button, .reaction-button {
+                min-width: 36px;
+                min-height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            /* Increase spacing for better touch interactions */
+            .user-message, .ai-message {
+                margin-bottom: 20px;
+            }
+        }
+        
+        .toast-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="chatbot-profile">
+                <div class="profile-photo">
+                    <img src="static/SVG/bot.svg" alt="Myra Avatar">
+                </div>
+                <div class="chatbot-info">
+                    <div class="chatbot-name">Myra</div>
+                    <div class="status-container">
+                        <div class="status-item">
+                            <div class="status-dot online"></div>
+                            <span>Online</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-dot processing"></div>
+                            <span>Processing</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-dot learning"></div>
+                            <span>Learning</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="robot-animation">
+                <div class="robot-computer">
+                    <div class="robot-head">
+                        <div class="robot-eyes">
+                            <div class="robot-eye"></div>
+                            <div class="robot-eye"></div>
+                        </div>
+                    </div>
+                    <div class="robot-screen">
+                        <div class="screen-content">
+                            <div class="screen-dots">
+                                <div class="screen-dot"></div>
+                                <div class="screen-dot"></div>
+                                <div class="screen-dot"></div>
+                            </div>
+                            <div class="screen-line"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="chat-container" id="chatContainer">        <!-- AI Welcome Message -->
+        <div class="message ai-message">
+            <div class="avatar ai-avatar">
+                <img src="static/SVG/bot.svg" alt="Myra Avatar">
+            </div>
+            <div class="message-content">
+                Hello valued friend! I'm Myra, how can I assist you today?
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast overlay for name prompt -->
+    <div class="toast-overlay" id="toastOverlay"></div>
+    <div class="toast-container" id="namePrompt">
+        <div class="toast-header">
+            <img src="static/SVG/bot.svg" alt="Myra"> Welcome!
+        </div>
+        <div class="toast-body">
+            Please enter your name so I can better assist you:
+        </div>
+        <input type="text" class="toast-input" id="nameInput" placeholder="Your name" maxlength="30">
+        <div class="toast-buttons">
+            <button class="toast-button toast-button-primary" id="submitName">Continue</button>
+        </div>
+    </div>
+
+    <div class="input-container">
+        <div class="input-wrapper">
+            <textarea 
+                class="message-input" 
+                id="messageInput" 
+                placeholder="Type your message here..." 
+                rows="1"
+                maxlength="500"
+            ></textarea>
+            <button class="send-button" id="sendButton">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+      <script>
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const chatContainer = document.getElementById('chatContainer');
+        const namePrompt = document.getElementById('namePrompt');
+        const toastOverlay = document.getElementById('toastOverlay');
+        const nameInput = document.getElementById('nameInput');
+        const submitNameBtn = document.getElementById('submitName');
+        
+        // Store user info
+        let userName = localStorage.getItem('userName') || '';
+        let typingTimeout;
+
+        // Show name prompt on page load if user name is not stored
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!userName) {
+                showNamePrompt();
+            } else {
+                updateWelcomeMessage();
+            }
+        });
+
+        // Function to show the name prompt
+        function showNamePrompt() {
+            namePrompt.style.visibility = 'visible';
+            namePrompt.style.opacity = '1';
+            toastOverlay.style.visibility = 'visible';
+            toastOverlay.style.opacity = '1';
+            nameInput.focus();
+        }
+
+        // Function to hide the name prompt
+        function hideNamePrompt() {
+            namePrompt.style.visibility = 'hidden';
+            namePrompt.style.opacity = '0';
+            toastOverlay.style.visibility = 'hidden';
+            toastOverlay.style.opacity = '0';
+        }
+
+        // Handle name submission
+        submitNameBtn.addEventListener('click', function() {
+            submitUserName();
+        });
+
+        nameInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                submitUserName();
+            }
+        });
+
+        function submitUserName() {
+            const name = nameInput.value.trim();
+            if (name) {
+                userName = name;
+                localStorage.setItem('userName', userName);
+                hideNamePrompt();
+                updateWelcomeMessage();
+            }
+        }
+
+        // Update the welcome message with the user's name
+        function updateWelcomeMessage() {
+            // Remove the default welcome message
+            const welcomeMessage = document.querySelector('.ai-message .message-content');
+            if (welcomeMessage) {
+                welcomeMessage.innerHTML = `Hello valued friend! I'm Myra, how can I assist you today?`;
+            }
+        }
+
+        // Create ResizeObserver to handle dynamic content changes
+        const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                if (entry.target === chatContainer) {
+                    scrollToLatestMessage();
+                }
+            }
+        });
+
+        // Observe chat container for size changes
+        resizeObserver.observe(chatContainer);
+
+        function scrollToLatestMessage() {
+            const viewHeight = chatContainer.clientHeight;
+            const scrollHeight = chatContainer.scrollHeight;
+            const desiredSpace = 240; // Space for ~2-3 messages
+            
+            chatContainer.scrollTo({
+                top: Math.max(0, scrollHeight - viewHeight + desiredSpace),
+                behavior: 'smooth'
+            });
+        }        // Auto-resize textarea and handle user typing indicator
+        messageInput.addEventListener('input', function() {
+            // Auto-resize textarea
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+            
+            // Show typing indicator for user
+            clearTimeout(typingTimeout);
+            if (this.value.trim()) {
+                // Only show typing indicator if one doesn't already exist for the user
+                const existingUserTyping = document.querySelector('.message.user-message .typing-indicator');
+                if (!existingUserTyping) {
+                    showTypingIndicator('user');
+                }
+                
+                // Set timeout to remove typing indicator after delay
+                typingTimeout = setTimeout(() => {
+                    const typingIndicator = document.querySelector('.message.user-message .typing-indicator')?.closest('.message');
+                    if (typingIndicator) {
+                        typingIndicator.remove();
+                    }
+                }, 1500); // Consistent timing for visualization
+            } else {
+                // Remove typing indicator if input is empty
+                const typingIndicator = document.querySelector('.message.user-message .typing-indicator')?.closest('.message');
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                }
+            }
+        });
+
+        // Send message on Enter (but new line on Shift+Enter)
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        sendButton.addEventListener('click', sendMessage);
+
+        async function sendMessageToAPI(message) {
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: message, userName: userName }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.response || 'Sorry, I could not understand the response from the server.';
+            } catch (error) {
+                console.error('Error sending message to API:', error);
+                return 'Sorry, I encountered an error processing your request.';
+            }
+        }        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Disable input and button while processing
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+
+            // Remove any existing typing indicators
+            const existingIndicators = document.querySelectorAll('.typing-indicator');
+            existingIndicators.forEach(indicator => {
+                const messageDiv = indicator.closest('.message');
+                if (messageDiv) messageDiv.remove();
+            });
+            
+            // Also clear typing timeout to ensure we don't get new indicators appearing
+            clearTimeout(typingTimeout);
+
+            // Add user message
+            addMessage(message, 'user');
+
+            try {
+                // Show AI typing indicator with consistent styling
+                const typingMessage = showTypingIndicator('ai');
+
+                // Send message to API and get response
+                const aiResponse = await sendMessageToAPI(message);
+                
+                // Remove typing indicator and add AI response
+                if (typingMessage) typingMessage.remove();
+                addMessage(aiResponse, 'ai');
+            } catch (error) {
+                console.error('Error:', error);
+                // Show error message if API call fails
+                addMessage('Sorry, I encountered an error while processing your message.', 'ai');
+            } finally {
+                // Re-enable input and button
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                
+                // Clear input and reset height
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+                
+                // Focus back on input
+                messageInput.focus();
+            }
+        }function showTypingIndicator(sender = 'ai') {
+            // Remove any existing typing indicators
+            const existingIndicators = document.querySelectorAll('.typing-indicator');
+            existingIndicators.forEach(indicator => {
+                const messageDiv = indicator.closest('.message');
+                if (messageDiv) messageDiv.remove();
+            });
+
+            // Create a new message container with consistent styling for both user and AI
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`; // Use consistent message class structure
+            
+            // Create and append the avatar
+            const avatar = document.createElement('div');
+            avatar.className = `avatar ${sender}-avatar`;
+            
+            const img = document.createElement('img');
+            img.src = `static/SVG/${sender === 'user' ? 'user.svg' : 'bot.svg'}`;
+            img.alt = `${sender === 'user' ? 'User' : 'AI'} Avatar`;
+            avatar.appendChild(img);
+
+            // Create message content container
+            const content = document.createElement('div');
+            content.className = 'message-content';
+
+            // Create typing indicator with unified styling
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator'; // Use a single class for consistent styling
+            
+            // Add three dots for the animation with uniform styling
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'typing-dot';
+                typingIndicator.appendChild(dot);
+            }
+            
+            // Assemble the components
+            content.appendChild(typingIndicator);
+            
+            // Maintain the correct order based on sender
+            if (sender === 'user') {
+                // For user, avatar comes after content (avatar on right)
+                messageDiv.appendChild(content);
+                messageDiv.appendChild(avatar);
+            } else {
+                // For AI, avatar comes before content (avatar on left)
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(content);
+            }
+            
+            chatContainer.appendChild(messageDiv);
+
+            // Enhanced auto-scroll using the new function
+            requestAnimationFrame(() => {
+                scrollToLatestMessage();
+            });
+
+            return messageDiv;
+        }
+
+        function formatMessage(text) {
+            // Check if the text contains code blocks
+            const hasCodeBlock = text.includes('```');
+            
+            if (hasCodeBlock) {
+                // Replace code blocks with properly formatted HTML
+                text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
+                    const lang = language || 'plaintext';
+                    return `<div class="code-header">
+                                <span>${lang}</span>
+                                <button class="copy-code-button" onclick="copyCodeToClipboard(this)">Copy code</button>
+                            </div>
+                            <pre><code class="language-${lang}">${code.trim()}</code></pre>`;
+                });
+            }
+
+            // Convert markdown-style formatting
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
+                     .replace(/\*(.*?)\*/g, '<em>$1</em>')              // Italic
+                     .replace(/^# (.*$)/gm, '<h1>$1</h1>')             // H1
+                     .replace(/^## (.*$)/gm, '<h2>$1</h2>')            // H2
+                     .replace(/^### (.*$)/gm, '<h3>$1</h3>')           // H3
+                     .replace(/^\* (.*$)/gm, '<li>$1</li>')            // List items
+                     .replace(/<\/li>\n<li>/g, '</li><li>');           // Fix list item spacing
+
+            return text;
+        }
+
+        function copyCodeToClipboard(button) {
+            const pre = button.parentElement.nextElementSibling;
+            const code = pre.querySelector('code');
+            navigator.clipboard.writeText(code.textContent).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.color = '#a277ff';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.color = '';
+                }, 2000);
+            });
+        }
+
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = `avatar ${sender}-avatar`;
+            
+            const img = document.createElement('img');
+            img.src = `static/SVG/${sender === 'user' ? 'user.svg' : 'bot.svg'}`;
+            img.alt = sender === 'user' ? 'User Avatar' : 'Bot Avatar';
+            avatar.appendChild(img);
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+
+            // Format the message with code highlighting and markdown
+            const formattedText = formatMessage(text);
+            content.innerHTML = `<div class="message-text">${formattedText}</div>
+                               <div class="reaction-container"></div>`;
+
+            // Add copy button
+            const copyButton = document.createElement('button');
+            copyButton.className = 'copy-button';
+            copyButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 4v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7.242a2 2 0 0 0-.602-1.43L16.083 2.57A2 2 0 0 0 14.685 2H10a2 2 0 0 0-2 2z"/><path d="M16 18v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2"/></svg>';
+            
+            copyButton.onclick = (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(text).then(() => {
+                    showCopyTooltip(copyButton, 'Copied!');
+                });
+            };
+
+            // Add reaction button
+            const reactionButton = document.createElement('button');
+            reactionButton.className = 'reaction-button';
+            reactionButton.innerHTML = '😊';
+            reactionButton.onclick = (e) => {
+                e.stopPropagation();
+                showEmojiPicker(messageDiv, e.clientX, e.clientY);
+            };
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(content);
+            messageDiv.appendChild(copyButton);
+            messageDiv.appendChild(reactionButton);
+            chatContainer.appendChild(messageDiv);
+
+            // Highlight code blocks
+            messageDiv.querySelectorAll('pre code').forEach((block) => {
+                Prism.highlightElement(block);
+            });
+
+            // Enhanced auto-scroll using the new function
+            requestAnimationFrame(() => {
+                scrollToLatestMessage();
+            });
+        }
+
+        function showCopyTooltip(button, text) {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'copy-tooltip';
+            tooltip.textContent = text;
+            
+            // Position the tooltip
+            const rect = button.getBoundingClientRect();
+            tooltip.style.position = 'fixed';
+            tooltip.style.left = `${rect.right + 8}px`;
+            tooltip.style.top = `${rect.top + rect.height/2 - 10}px`;
+            
+            document.body.appendChild(tooltip);
+            
+            // Show tooltip with animation
+            requestAnimationFrame(() => {
+                tooltip.style.opacity = '1';
+                setTimeout(() => {
+                    tooltip.style.opacity = '0';
+                    setTimeout(() => tooltip.remove(), 300);
+                }, 1500);
+            });
+        }
+
+        // Emoji picker functionality
+        const emojis = ['👍', '❤️', '😊', '😂', '🎉', '👏', '🤔', '👌'];
+        let currentEmojiPicker = null;
+
+        function showEmojiPicker(messageDiv, x, y) {
+            // Remove any existing emoji picker
+            if (currentEmojiPicker) {
+                currentEmojiPicker.remove();
+            }
+
+            const picker = document.createElement('div');
+            picker.className = 'emoji-picker';
+            
+            emojis.forEach(emoji => {
+                const option = document.createElement('div');
+                option.className = 'emoji-option';
+                option.textContent = emoji;
+                option.onclick = () => addReaction(messageDiv, emoji);
+                picker.appendChild(option);
+            });
+
+            // Adjust picker position based on message type
+            const isUserMessage = messageDiv.classList.contains('user-message');
+            const rect = messageDiv.getBoundingClientRect();
+            
+            picker.style.position = 'fixed';
+            if (isUserMessage) {
+                picker.style.left = `${rect.left}px`;
+            } else {
+                picker.style.left = `${rect.right - 150}px`; // 150px is approximate picker width
+            }
+            picker.style.top = `${y}px`;
+
+            document.body.appendChild(picker);
+            currentEmojiPicker = picker;
+
+            // Show the picker with animation
+            setTimeout(() => picker.classList.add('show'), 0);
+
+            // Close picker when clicking outside
+            document.addEventListener('click', function closeEmojiPicker(e) {
+                if (!picker.contains(e.target) && e.target !== messageDiv.querySelector('.reaction-button')) {
+                    picker.remove();
+                    currentEmojiPicker = null;
+                    document.removeEventListener('click', closeEmojiPicker);
+                }
+            });
+        }
+
+        function addReaction(messageDiv, emoji) {
+            const reactionContainer = messageDiv.querySelector('.reaction-container');
+            let existingReaction = Array.from(reactionContainer.children).find(
+                reaction => reaction.dataset.emoji === emoji
+            );
+
+            if (existingReaction) {
+                const count = parseInt(existingReaction.querySelector('.reaction-count').textContent) + 1;
+                existingReaction.querySelector('.reaction-count').textContent = count;
+            } else {
+                const reaction = document.createElement('div');
+                reaction.className = 'reaction';
+                reaction.dataset.emoji = emoji;
+                reaction.innerHTML = `${emoji}<span class="reaction-count">1</span>`;
+                reactionContainer.appendChild(reaction);
+            }
+
+            // Remove emoji picker
+            if (currentEmojiPicker) {
+                currentEmojiPicker.remove();
+                currentEmojiPicker = null;
+            }
+        }
+
+        // Add input focus effects
+        messageInput.addEventListener('focus', () => {
+            document.querySelector('.input-container').style.transform = 'translateY(-2px)';
+        });
+
+        messageInput.addEventListener('blur', () => {
+            document.querySelector('.input-container').style.transform = 'translateY(0)';
+        });
+    </script>
+</body>
+</html>

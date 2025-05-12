@@ -1,0 +1,189 @@
+import datetime
+import logging
+import os
+import traceback
+from json import load, dump
+from groq import Groq
+from fastapi import HTTPException
+from config.settings import settings
+
+# Ensure logs directory exists
+LOG_DIR = "logs"
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(LOG_DIR, 'app.log')),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+ALLOWED_MODELS = ["llama3-70b-8192", "mixtral-8x7b-32768"]
+DEFAULT_MODEL = "llama3-70b-8192"
+
+class ChatManager:
+    def __init__(self):
+        try:
+            if not settings.GROQ_API_KEY:
+                raise ValueError("GROQ_API_KEY is not set")
+            
+            self.client = Groq(api_key=settings.GROQ_API_KEY)
+            self.system_message = self._create_system_message()
+            self.model = DEFAULT_MODEL
+            
+            # Validate model availability
+            try:
+                # Test API connection with a simple completion
+                self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": "test"}],
+                    max_tokens=1
+                )
+            except Exception as e:
+                logger.error(f"Failed to validate model availability: {str(e)}")
+                raise ValueError(f"Failed to validate model {self.model}: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error initializing ChatManager: {str(e)}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to initialize chat service: {str(e)}"
+            )
+        
+    def _create_system_message(self, user_name=None):
+        # Use a universal friendly greeting that works for all users
+        greeting = "Hello, valued friend"
+        return f"""{greeting}, I am a helpful assistant. You are a very accurate and advanced AI chatbot named {settings.ASSISTANT_NAME} which also has real-time up-to-date information from the internet.
+*** Do not tell time until I ask, do not talk too much, just answer the question.***
+*** Reply in only English, even if the question is in Hindi, reply in English.***
+*** Do not provide notes in the output, just answer the question and never mention your training data. ***
+*** Always use respectful and professional language, addressing the user in a friendly manner. ***
+"""
+
+    def _get_realtime_info(self):
+        current_date_time = datetime.datetime.now()
+        return f"Day: {current_date_time.strftime('%A')}, Date: {current_date_time.strftime('%d %B %Y')}, Time: {current_date_time.strftime('%H:%M:%S')}"
+    
+    def _modify_answer(self, answer: str) -> str:
+        if not answer:
+            return ""
+        return '\n'.join([line for line in answer.split('\n') if line.strip()])
+
+    def _chunk_messages(self, messages, max_tokens=5000):
+        """Split messages into smaller chunks to avoid token limit."""
+        # Rough estimate: 4 chars ~= 1 token
+        total_length = sum(len(msg["content"]) for msg in messages)
+        if total_length / 4 <= max_tokens:
+            return messages
+
+        # Keep only the most recent messages that fit within the token limit
+        result = []
+        current_length = 0
+        for msg in reversed(messages):
+            msg_length = len(msg["content"]) / 4
+            if current_length + msg_length > max_tokens:
+                break
+            result.insert(0, msg)
+            current_length += msg_length
+        
+        return result
+
+    def chat(self, query: str, user_name=None) -> str:
+        if not query or not query.strip():
+            logger.error("Empty query provided")
+            raise ValueError("Empty query provided")
+
+        try:
+            messages = self._load_chat_history()
+            messages.append({"role": "user", "content": query})
+            
+            # Chunk messages to avoid token limit
+            chunked_messages = self._chunk_messages(messages)
+            
+            # Update system message with user name if provided
+            system_message = self._create_system_message(user_name)
+            
+            logger.info(f"Sending request to Groq API with model: {self.model}")
+            try:
+                completion = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "system", "content": self._get_realtime_info()},
+                        *chunked_messages
+                    ],
+                    max_tokens=1024,
+                    temperature=0.7,
+                    top_p=1,
+                    stream=False,
+                    timeout=30
+                )
+                logger.info("Successfully received response from Groq API")
+            except Exception as api_error:
+                error_details = f"API error details: {str(api_error)}\n{traceback.format_exc()}"
+                logger.error(error_details)
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"API error: {str(api_error)}"
+                )
+            
+            if not completion or not hasattr(completion, 'choices') or not completion.choices:
+                error_msg = f"Invalid API response structure: {completion}"
+                logger.error(error_msg)
+                raise HTTPException(
+                    status_code=500,
+                    detail="Invalid response from the chat service"
+                )
+            
+            answer = completion.choices[0].message.content
+            if not answer or not answer.strip():
+                logger.error("Empty response received from API")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Empty response from the chat service"
+                )
+            
+            messages.append({"role": "assistant", "content": answer})
+            
+            try:
+                self._save_chat_history(messages)
+            except Exception as e:
+                logger.warning(f"Failed to save chat history: {str(e)}\n{traceback.format_exc()}")
+                
+            return self._modify_answer(answer)
+            
+        except HTTPException:
+            raise
+        except ValueError as ve:
+            logger.error(f"Validation error: {str(ve)}")
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception as e:
+            error_details = f"Unexpected error in chat: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_details)
+            raise HTTPException(
+                status_code=500,
+                detail="An unexpected error occurred while processing your request"
+            )
+
+    def _load_chat_history(self):
+        try:
+            with open(settings.CHAT_LOG_PATH, "r") as f:
+                return load(f)
+        except FileNotFoundError:
+            return []
+        except Exception as e:
+            logger.error(f"Error loading chat history: {str(e)}")
+            return []
+
+    def _save_chat_history(self, messages):
+        try:
+            with open(settings.CHAT_LOG_PATH, "w") as f:
+                dump(messages, f, indent=4)
+        except Exception as e:
+            logger.error(f"Error saving chat history: {str(e)}")
+            # Don't raise here, just log the error
