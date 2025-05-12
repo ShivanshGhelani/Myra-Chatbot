@@ -29,16 +29,16 @@ for key in os.environ:
 IS_VERCEL = os.environ.get('VERCEL') == '1'
 
 # Create necessary directories
-if IS_VERCEL:
-    # On Vercel, use /tmp directory which is writable
+if IS_VERCEL:    # On Vercel, use /tmp directory which is writable
     logger.info("Running on Vercel, using /tmp for writable directories")
     tmp_dir = Path("/tmp")
     for dir_path in ["logs", "data", "audio"]:
         try:
-            (tmp_dir / dir_path).mkdir(exist_ok=True, parents=True)
-            logger.info(f"Created temporary directory: /tmp/{dir_path}")
+            full_path = tmp_dir / dir_path
+            full_path.mkdir(exist_ok=True, parents=True)
+            logger.info(f"Created temporary directory: {str(full_path)}")
         except Exception as e:
-            logger.warning(f"Failed to create temporary directory /tmp/{dir_path}: {str(e)}")
+            logger.warning(f"Failed to create temporary directory {str(tmp_dir / dir_path)}: {str(e)}")
     
     # Static and templates are read-only on Vercel and are part of the deployment
     logger.info("Static and template directories are read-only on Vercel")
@@ -54,13 +54,23 @@ else:
 try:
     # Import main app
     from api.main import create_app
+    
+    # Create the FastAPI app
     app = create_app()
+    
+    # Extract the ASGI app from FastAPI
+    asgi_app = app
+    
+    # The variable must be named 'handler' for Vercel
+    # This is what Vercel looks for when processing Python serverless functions
+    handler = asgi_app
+    
+    # Verify the handler is properly set up
+    logger.info(f"App initialized and handler created successfully. Handler type: {type(handler).__name__}")
 except Exception as e:
     logger.error(f"Error initializing app: {str(e)}")
+    # Log the full stack trace
+    import traceback
+    logger.error(traceback.format_exc())
     raise
-
-# Vercel handler
-handler = app
-
-### s:\Projects\FastAPI\SeperateFolder\MyraChatBot\README.md
 

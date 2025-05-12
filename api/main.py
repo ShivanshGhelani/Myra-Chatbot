@@ -22,7 +22,11 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("pygame").setLevel(logging.WARNING)
 
 def create_app():
-    app = FastAPI()
+    app = FastAPI(
+        title="Myra ChatBot API",
+        description="FastAPI application for Myra ChatBot",
+        version="1.0.0",
+    )
 
     # Add CORS middleware
     app.add_middleware(
@@ -84,10 +88,11 @@ def create_app():
                         return HTMLResponse(content=f.read(), status_code=200)
                 except Exception as e:
                     logging.error(f"Error reading template file {path}: {str(e)}")
-        
-        # Fallback HTML content
+          # Fallback HTML content
         logging.warning("Template file not found, serving default HTML")
-        return HTMLResponse(content="<h1>Myra ChatBot API</h1><p>API is running. Use endpoints to interact with the chatbot.</p>")    @app.get("/health")
+        return HTMLResponse(content="<h1>Myra ChatBot API</h1><p>API is running. Use endpoints to interact with the chatbot.</p>")
+        
+    @app.get("/health")
     async def health():
         return {"status": "healthy"}
         
