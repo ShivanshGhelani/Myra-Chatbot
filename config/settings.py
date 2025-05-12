@@ -29,7 +29,7 @@ class Settings:
             env_vars[key] = value
             
         return env_vars
-      def _validate_required_env_vars(self) -> None:
+    def _validate_required_env_vars(self) -> None:
         """Validate that all required environment variables are present."""
         required_vars = ["GroqAPIKey"]
         missing_vars = []
