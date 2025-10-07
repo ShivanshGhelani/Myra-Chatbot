@@ -44,7 +44,7 @@ else:
 logger = logging.getLogger(__name__)
 
 ALLOWED_MODELS = ["llama3-70b-8192", "mixtral-8x7b-32768"]
-DEFAULT_MODEL = "llama3-70b-8192"
+DEFAULT_MODEL = "qwen/qwen3-32b"
 
 class ChatManager:
     def __init__(self):
